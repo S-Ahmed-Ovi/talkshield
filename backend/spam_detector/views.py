@@ -1,17 +1,28 @@
-# spam_detector/views.py
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
-from .serializers import SpamMessageSerializer
+import pickle
+import os
+import re
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, 'ml_models', 'spam_model.pkl')
+VECTORIZER_PATH = os.path.join(BASE_DIR, 'ml_models', 'vectorizer.pkl')
+
+with open(MODEL_PATH, 'rb') as f:
+    model = pickle.load(f)
+
+with open(VECTORIZER_PATH, 'rb') as f:
+    vectorizer = pickle.load(f)
+
+def clean_text(text):
+    text = text.lower()
+    text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
+    return text
 
 class SpamPredictAPIView(APIView):
     def post(self, request):
-        serializer = SpamMessageSerializer(data=request.data)
-        if serializer.is_valid():
-            message = serializer.validated_data['message']
-
-            # Placeholder for ML model prediction
-            prediction = "spam" if "offer" in message.lower() else "ham"
-
-            return Response({"message": message, "prediction": prediction})
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        message = request.data.get("message", "")
+        cleaned = clean_text(message)
+        transformed = vectorizer.transform([cleaned])
+        prediction = model.predict(transformed)[0]
+        return Response({"message": message, "prediction": prediction})

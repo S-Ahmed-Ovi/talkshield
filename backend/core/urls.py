@@ -21,5 +21,7 @@ from django.urls import path, include
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/spam/', include('spam_detector.urls')),
+    path('api/fraud/', include('fraud_detector.urls')),
+
 ]
 

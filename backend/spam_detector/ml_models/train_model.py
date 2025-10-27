@@ -2,48 +2,46 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
-from sklearn.metrics import accuracy_score
 import pickle
 import re
+import os
 
-# 1️⃣ Load Dataset
-df = pd.read_csv('spam_detector/ml_models/spam.csv', encoding='latin-1')
-
-# Clean up dataset (remove unnamed extra columns if exist)
-# Rename columns because dataset uses v1 for label and v2 for message
-df = df.rename(columns={'v1': 'label', 'v2': 'message'})
-df = df[['label', 'message']]
-
-
-# 2️⃣ Preprocessing function
+# ---------- CLEAN TEXT ----------
 def clean_text(text):
     text = text.lower()
     text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
     return text
 
-df['cleaned'] = df['message'].apply(clean_text)
+# ---------- LOAD DATA ----------
+base_dir = os.path.dirname(os.path.abspath(__file__))
+data_path = os.path.join(base_dir, "spam.csv")
 
-# 3️⃣ Split data
-X_train, X_test, y_train, y_test = train_test_split(df['cleaned'], df['label'], test_size=0.2, random_state=42)
+df = pd.read_csv(data_path, encoding='latin-1')
+# Adjust for correct column names
+df = df.rename(columns={'v1': 'label', 'v2': 'message'})
+df = df[['label', 'message']]
+df['message'] = df['message'].apply(clean_text)
 
-# 4️⃣ Vectorize using TF-IDF
-vectorizer = TfidfVectorizer(stop_words='english')
-X_train_tfidf = vectorizer.fit_transform(X_train)
-X_test_tfidf = vectorizer.transform(X_test)
+# ---------- SPLIT DATA ----------
+X_train, X_test, y_train, y_test = train_test_split(df['message'], df['label'], test_size=0.2, random_state=42)
 
-# 5️⃣ Train model
+# ---------- TF-IDF VECTORIZE ----------
+vectorizer = TfidfVectorizer(stop_words='english', max_features=3000)
+X_train_vec = vectorizer.fit_transform(X_train)
+X_test_vec = vectorizer.transform(X_test)
+
+# ---------- TRAIN MODEL ----------
 model = MultinomialNB()
-model.fit(X_train_tfidf, y_train)
+model.fit(X_train_vec, y_train)
 
-# 6️⃣ Evaluate
-preds = model.predict(X_test_tfidf)
-print("Model Accuracy:", accuracy_score(y_test, preds))
+# ---------- SAVE MODEL ----------
+model_path = os.path.join(base_dir, "spam_model.pkl")
+vec_path = os.path.join(base_dir, "vectorizer.pkl")
 
-# 7️⃣ Save both model and vectorizer
-with open('spam_detector/ml_models/spam_model.pkl', 'wb') as f:
+with open(model_path, "wb") as f:
     pickle.dump(model, f)
 
-with open('spam_detector/ml_models/vectorizer.pkl', 'wb') as f:
+with open(vec_path, "wb") as f:
     pickle.dump(vectorizer, f)
 
-print("✅ Model and vectorizer saved successfully!")
+print("✅ Model trained and saved successfully!")
